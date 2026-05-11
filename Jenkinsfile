@@ -14,7 +14,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         ECR_REPO = 'my-app'
         IMAGE_TAG = "${BUILD_NUMBER}"  // Unique tag for each build
-        AWS_ACCOUNT_ID = '503499294473.dkr.ecr.us-east-1.amazonaws.com/my-app'
+        AWS_ACCOUNT_ID = '503499294473'
         ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
     }
     
