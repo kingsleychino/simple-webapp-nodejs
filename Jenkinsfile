@@ -75,12 +75,10 @@ pipeline {
                 stage('Deploy infrastructure via Terraform') {
                     steps {
                         dir('terraform') {
-                            sh 'terraform init'   // Download providers & modules
-
-                            // Preview what will change (does NOT apply anything)
+                            sh 'pwd'        // show current directory
+                            sh 'ls -la'     // list everything in the folder
+                            sh 'terraform init'
                             sh "terraform plan -var='container_image=${ECR_URI}:${IMAGE_TAG}'"
-
-                            // Apply the changes (auto-approve skips the manual prompt)
                             sh "terraform apply -auto-approve -var='container_image=${ECR_URI}:${IMAGE_TAG}'"
                         }
                     }
