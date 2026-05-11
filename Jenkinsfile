@@ -19,6 +19,24 @@ pipeline {
     }
     
     stages {
+        stage('Setup Node.js') {
+            steps {
+                script {
+                    // Check if node is installed, if not - install it
+                    sh '''
+                        if ! command -v node &> /dev/null; then
+                            echo "Installing Node.js..."
+                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+                            sudo apt-get install -y nodejs
+                        else
+                            echo "Node.js is already installed: $(node --version)"
+                        fi
+                    '''
+                }
+            }
+        }
+
+
         // Step 1: Get the code from GitHub
         stage('Get Github Code') {
             steps {
