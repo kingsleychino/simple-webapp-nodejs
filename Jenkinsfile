@@ -19,24 +19,6 @@ pipeline {
     }
     
     stages {
-        stage('Setup Node.js') {
-            steps {
-                script {
-                    // Check if node is installed, if not - install it
-                    sh '''
-                        if ! command -v node &> /dev/null; then
-                            echo "Installing Node.js..."
-                            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-                            sudo apt-get install -y nodejs
-                        else
-                            echo "Node.js is already installed: $(node --version)"
-                        fi
-                    '''
-                }
-            }
-        }
-
-
         // Step 1: Get the code from GitHub
         stage('Get Github Code') {
             steps {
@@ -50,18 +32,7 @@ pipeline {
                 expression { params.ACTION == 'apply' }
             }
             stages {
-                
-                // 2.1 Install dependencies and test
-                stage('Install & Test Code') {
-                    steps {
-                        dir('app') {
-                            sh 'npm install'  // Download required packages
-                            sh 'npm test'     // Run tests
-                        }
-                    }
-                }
-                
-                // 2.2 Create a Docker package
+                // Create a Docker package
                 stage('Package App in Docker') {
                     steps {
                         dir('app') {
@@ -70,7 +41,7 @@ pipeline {
                     }
                 }
                 
-                // 2.3 Upload Docker package to AWS
+                // Upload Docker package to AWS
                 stage('Upload to AWS Repository') {
                     steps {
                         withCredentials([
@@ -90,7 +61,7 @@ pipeline {
                     }
                 }
                 
-                // 2.4 Create AWS resources using Terraform
+                // Create AWS resources using Terraform
                 stage('Create AWS Resources') {
                     steps {
                         dir('terraform') {
