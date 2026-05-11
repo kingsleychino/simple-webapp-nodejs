@@ -1,108 +1,118 @@
+
 pipeline {
     agent any
-    
-    // Let user choose what to do
+
+    // When triggering this pipeline, choose one action:
+    //   apply   → Build, push, and deploy the app
+    //   destroy → Tear down all AWS resources
     parameters {
         choice(
             name: 'ACTION',
             choices: ['apply', 'destroy'],
-            description: 'What do you want to do? apply = Deploy app, destroy = Remove everything'
+            description: 'apply = deploy the app | destroy = remove everything'
         )
     }
-    
+
+    // Shared Variables
     environment {
-        AWS_REGION = 'us-east-1'
-        ECR_REPO = 'my-app'
-        IMAGE_TAG = "${BUILD_NUMBER}"  // Unique tag for each build
+        AWS_REGION     = 'us-east-1'
         AWS_ACCOUNT_ID = '503499294473'
+        ECR_REPO       = 'my-app'
+        IMAGE_TAG      = "${BUILD_NUMBER}"   // Unique per build (e.g. "42")
+
+        // Full ECR image address, e.g.: 503499294473.dkr.ecr.us-east-1.amazonaws.com/my-app
         ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
     }
-    
+
     stages {
-        // Step 1: Get the code from GitHub
-        stage('Get Github Code') {
+
+        // Stage 1: Get the Source Code
+        stage('Checkout code') {
             steps {
-                git branch: 'main', url: 'https://github.com/kingsleychino/simple-webapp-nodejs.git'
+                git branch: 'main',
+                    url: 'https://github.com/kingsleychino/simple-webapp-nodejs.git'
             }
         }
-        
-        // Step 2: If user chose 'apply' - Deploy the app
-        stage('Deploy Application') {
+
+        // Stage 2: Deploy (only when ACTION = apply)
+        stage('Deploy application') {
             when {
                 expression { params.ACTION == 'apply' }
             }
             stages {
-                // Create a Docker package
-                stage('Package App in Docker') {
+
+                // Step 2a – Build a Docker image from the /app folder
+                stage('Build Docker image') {
                     steps {
                         dir('app') {
                             sh "docker build -t ${ECR_REPO}:${IMAGE_TAG} ."
                         }
                     }
                 }
-                
-                // Upload Docker package to AWS
-                stage('Upload to AWS Repository') {
+
+                // Step 2b – Push the image to Amazon ECR (private registry)
+                stage('Push image to AWS ECR') {
                     steps {
                         withCredentials([
-                            string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                            string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
                             string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                         ]) {
                             sh """
-                                # Login to AWS Docker repository
-                                aws ecr get-login-password --region ${AWS_REGION} | \
-                                docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                                
-                                # Tag and upload the Docker package
-                                docker tag ${ECR_REPO}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
+                                # Authenticate Docker with ECR
+                                aws ecr get-login-password --region ${AWS_REGION} \
+                                  | docker login --username AWS --password-stdin \
+                                    ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+                                # Tag the image with the full ECR path, then push it
+                                docker tag  ${ECR_REPO}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
                                 docker push ${ECR_URI}:${IMAGE_TAG}
                             """
                         }
                     }
                 }
-                
-                // Create AWS resources using Terraform
-                stage('Create AWS Resources') {
+
+                // Step 2c – Create/update AWS infrastructure with Terraform
+                stage('Deploy infrastructure via Terraform') {
                     steps {
                         dir('terraform') {
-                            sh 'terraform init'  // Setup Terraform
-                            sh "terraform plan -var='container_image=${ECR_URI}:${IMAGE_TAG}'"  // Preview changes
-                            sh "terraform apply -auto-approve -var='container_image=${ECR_URI}:${IMAGE_TAG}'"  // Apply changes
+                            sh 'terraform init'   // Download providers & modules
+
+                            // Preview what will change (does NOT apply anything)
+                            sh "terraform plan -var='container_image=${ECR_URI}:${IMAGE_TAG}'"
+
+                            // Apply the changes (auto-approve skips the manual prompt)
+                            sh "terraform apply -auto-approve -var='container_image=${ECR_URI}:${IMAGE_TAG}'"
                         }
                     }
                 }
+
             }
         }
-        
-        // Step 3: If user chose 'destroy' - Remove everything
-        stage('Remove Everything') {
+
+        // Stage 3: Destroy (only when ACTION = destroy)
+        stage('Tear down infrastructure') {
             when {
                 expression { params.ACTION == 'destroy' }
             }
             steps {
                 withCredentials([
-                    string(credentialsId: 'aws-access-key-id', variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
                     string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     dir('terraform') {
-                        sh 'terraform init'      // Setup Terraform
-                        sh 'terraform destroy -auto-approve'  // Delete all resources
+                        sh 'terraform init'              // Required before any Terraform command
+                        sh 'terraform destroy -auto-approve'  // Delete all managed resources
                     }
                 }
             }
         }
+
     }
-    
-    // Cleanup and notifications
+
+    // Post-run Notifications
     post {
-        always {
-            cleanWs()  // Clean workspace regardless of success/failure
-        }
-        success {
-            echo "SUCCESS: ${params.ACTION} completed without errors!"
-        }
-        failure {
-            echo "FAILURE: ${params.ACTION} failed. Check the logs above for errors."
-        }
+        always  { cleanWs() }   // Always clean the workspace, even on failure
+        success { echo "'${params.ACTION}' finished successfully." }
+        failure { echo "'${params.ACTION}' failed — check the logs above." }
     }
 }
