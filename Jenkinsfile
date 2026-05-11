@@ -20,9 +20,9 @@ pipeline {
     
     stages {
         // Step 1: Get the code from GitHub
-        stage('Get Latest Code') {
+        stage('Get Github Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/your-org/your-repo.git'
+                git branch: 'main', url: 'https://github.com/kingsleychino/simple-webapp-nodejs.git'
             }
         }
         
