@@ -1,6 +1,7 @@
 variable "container_image" {
   description = "ECR image URI passed in from Jenkins"
   type        = string
+  default     = "none"
 }
 
 variable "project_name" {

@@ -98,8 +98,8 @@ pipeline {
                     string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
                     dir('app/terraform/website') {
-                        sh 'terraform init'              // Required before any Terraform command
-                        sh 'terraform destroy -auto-approve'  // Delete all managed resources
+                        sh 'terraform init'
+                        sh "terraform destroy -auto-approve -var='container_image=none'"
                     }
                 }
             }
