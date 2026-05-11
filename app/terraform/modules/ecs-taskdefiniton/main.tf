@@ -12,10 +12,16 @@ resource "aws_ecs_task_definition" "TD" {
       cpu       = 1024
       memory    = 2048
       essential = true
+      environment = [
+        {
+          name  = "PORT"
+          value = "3000"
+        }
+      ],
       portMappings = [
         {
-          containerPort = 80
-          hostPort      = 80
+          containerPort = 3000
+          protocol      = "tcp"
         }
       ]
     }
