@@ -74,7 +74,7 @@ pipeline {
                 // Step 2c – Create/update AWS infrastructure with Terraform
                 stage('Deploy infrastructure via Terraform') {
                     steps {
-                        dir('terraform') {
+                        dir('app/terraform/website') {
                             sh 'pwd'        // show current directory
                             sh 'ls -la'     // list everything in the folder
                             sh 'terraform init'
@@ -97,7 +97,7 @@ pipeline {
                     string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
                     string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
                 ]) {
-                    dir('terraform') {
+                    dir('app/terraform/website') {
                         sh 'terraform init'              // Required before any Terraform command
                         sh 'terraform destroy -auto-approve'  // Delete all managed resources
                     }

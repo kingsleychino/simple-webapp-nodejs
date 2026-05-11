@@ -64,5 +64,6 @@ module "target_group" {
 # create ecs task definition
 module "ecs_task_definition" {
   source                       = "../modules/ecs-taskdefiniton"
+  container_image              = var.container_image
   ecs_tasks_execution_role_arn = module.ecs_tasks_execution_role.ecs_tasks_execution_role_arn
 }
